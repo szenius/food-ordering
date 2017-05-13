@@ -15,11 +15,11 @@ public class Order {
         this.price = price;
     }
 
-    public Integer getUserid() {
+    public Integer getUserId() {
         return userId;
     }
 
-    public String getUsername() {
+    public String getUserName() {
         return username;
     }
 
@@ -31,8 +31,14 @@ public class Order {
         return price;
     }
 
+    // For view command
     public String getViewString() {
-        return getName() + ", $" + String.valueOf(getPrice()) + " by " + getUsername();
+        return getCollateString() + " by " + getUserName();
+    }
+
+    // For collate command
+    public String getCollateString() {
+        return getName() + ", $" + String.valueOf(getPrice());
     }
 
     public void setUserid(Integer newUserid){
