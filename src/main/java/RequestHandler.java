@@ -9,6 +9,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.telegram.telegrambots.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.api.methods.send.SendVoice;
 import org.telegram.telegrambots.api.objects.Message;
 import org.telegram.telegrambots.api.objects.MessageEntity;
@@ -24,17 +25,24 @@ import java.util.*;
 public class RequestHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(RequestHandler.class);
 
+    // Error messages
     private static final String MESSAGE_COMMAND_ERROR = "Sorry, I didn't understand that! Could you try again?";
     private static final String MESSAGE_TTS_ERROR = "We could not generate your orders in an audio file...";
     private static final String MESSAGE_NO_ORDERS = "You have no orders! Try adding one with '/add'!";
+    private static final String MESSAGE_NO_MENU = "Sorry, we don't support this menu for now!";
 
-    private static List<Order> orders; // TODO: change to List<Order>
+    // Orders saved in memory
+    private static List<Order> orders;
 
-    private static Menu menuList = new Menu();
+    // ShakeShackMenu
+    private static final String MENU_SHAKE_SHACK = "Shake Shack";
+    private static Map<String, ShakeShackMenu> menuMap = new HashMap<>();
+
+    // Responses
     private String response;
     private SendVoice audioOrder;
+    private SendPhoto photoMessage;
 
-    private static final Map<String, Menu> menuMap = new HashMap<>();
 
     public RequestHandler() {
         orders = new ArrayList<>();
@@ -55,27 +63,33 @@ public class RequestHandler {
 
         String text = removeFirstWord(message.getText());
         User user = message.getFrom();
-        String url = removeFirstWord(message.getText());
 
-        String result = null;
+        String result;
 
         switch (command) {
             case ADD:
                 result = addOrder(text, user);
+                setResponse(result);
                 break;
             case CLEAR:
                 result = clearOrders();
+                setResponse(result);
                 break;
             case VIEW:
                 result = viewOrders();
+                setResponse(result);
                 break;
             case COLLATE:
                 result = collateOrders();
+                setResponse(result);
                 break;
             case MENU:
-                result = loadMenu(url);
+                SendPhoto photoMessage = loadMenu(text, message.getChatId());
+                setPhoto(photoMessage);
+                break;
             case SPLIT:
                 result = splitOrdersByUser();
+                setResponse(result);
                 break;
             case ORDER:
                 SendVoice audioMessage = ttsOrder(message.getChatId());
@@ -83,13 +97,15 @@ public class RequestHandler {
                 break;
             default:
                 result = getCommandErrorMessage();
+                setResponse(result);
         }
 
-        setResponse(result);
     }
 
     public void setResponse(String response) {
         this.response = response;
+        this.audioOrder = null;
+        this.photoMessage = null;
     }
 
     public String getResponse() {
@@ -98,10 +114,22 @@ public class RequestHandler {
 
     public void setAudio(SendVoice audio) {
         this.audioOrder = audio;
+        this.photoMessage = null;
+        this.response = null;
     }
 
     public SendVoice getAudioOrder() {
         return audioOrder;
+    }
+
+    public void setPhoto(SendPhoto photo) {
+        this.photoMessage = photo;
+        this.audioOrder = null;
+        this.response = null;
+    }
+
+    public SendPhoto getPhotoMessage() {
+        return photoMessage;
     }
 
     // Add an order
@@ -246,22 +274,27 @@ public class RequestHandler {
         return result;
     }
 
-    // View Menu
-    public String loadMenu(String url) {
-        LOGGER.info("Loading Menu: {}", url);
+    // View ShakeShackMenu
+    public SendPhoto loadMenu(String menuName, Long chatId) {
+        LOGGER.info("Loading ShakeShackMenu: {}", menuName);
 
-        String key = "http://www.madenicenyc.com/menu/";
-//        List<Menu> menu = new List<Menu>() {
-//        }
-//
-//        if(menuMap.get(key)) {
-//
-//        }
+        if (!menuName.equals(MENU_SHAKE_SHACK)) {
+            LOGGER.debug("Menu name did not match \"Shake Shack\": {}", menuName);
+            return null; // TODO: maybe should have error message
+        }
 
-        menuList.loadMenu();
-        String[] tokens = url.trim().split("\\.");
-        String restaurant = tokens[1];
-        return restaurant + " menu has been loaded.";
+        if (!menuMap.containsKey(menuName)) {
+            // First time seeing this menu
+            // Add to menu map
+            LOGGER.debug("First time loading {}", menuName);
+            menuMap.put(menuName, new ShakeShackMenu());
+        }
+
+        // Return menu in photo
+        SendPhoto photoResult = new SendPhoto();
+        photoResult.setNewPhoto(new File("/Users/szeying/Documents/personal/foodordering/shakeshack.png"));
+        photoResult.setChatId(chatId);
+        return photoResult;
     }
 
     // Text to speech ordering!!!!!!

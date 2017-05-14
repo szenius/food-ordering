@@ -1,6 +1,8 @@
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.api.methods.send.SendMessage;
+import org.telegram.telegrambots.api.methods.send.SendPhoto;
+import org.telegram.telegrambots.api.methods.send.SendVoice;
 import org.telegram.telegrambots.api.objects.Message;
 import org.telegram.telegrambots.api.objects.Update;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -25,7 +27,7 @@ public class Bot extends TelegramLongPollingBot {
                 respond(update);
             }
         } catch (TelegramApiException e) {
-            LOGGER.error("Could not send message");
+            LOGGER.error("Could not send message", e);
         }
     }
 
@@ -43,6 +45,8 @@ public class Bot extends TelegramLongPollingBot {
 
         handler.execute(message);
         String textResponse = handler.getResponse();
+        SendVoice voiceResponse = handler.getAudioOrder();
+        SendPhoto photoResponse = handler.getPhotoMessage();
 
         if (textResponse != null) {
             SendMessage result = new SendMessage();
@@ -50,8 +54,10 @@ public class Bot extends TelegramLongPollingBot {
             result.setChatId(message.getChatId());
             result.setParseMode("Markdown");
             sendMessage(result);
-        } else {
+        } else if (voiceResponse != null) {
             sendVoice(handler.getAudioOrder());
+        } else {
+            sendPhoto(handler.getPhotoMessage());
         }
     }
 }

@@ -5,8 +5,13 @@ import java.util.List;
  * @author zhengyu
  * @since 5/13/17
  */
-public class Menu {
-    private static List<MenuItem> menuList = new ArrayList<>();
+public class ShakeShackMenu {
+    private static List<MenuItem> menuList;
+
+    public ShakeShackMenu() {
+        menuList = new ArrayList<>();
+        loadMenu();
+    }
 
     public List<MenuItem> getMenuList(List<MenuItem> menuList) {
         return menuList;
@@ -20,7 +25,6 @@ public class Menu {
         MenuItem food1 = new MenuItem("Spring Chicken", 12);
         MenuItem food2 = new MenuItem("Salmon Rosti", 15);
         MenuItem food3 = new MenuItem("Curry Cauliflower", 11);
-
 
         menuList.add(food1);
         menuList.add(food2);
