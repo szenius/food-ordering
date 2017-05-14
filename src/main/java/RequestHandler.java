@@ -16,6 +16,7 @@ import org.telegram.telegrambots.api.objects.MessageEntity;
 import org.telegram.telegrambots.api.objects.User;
 
 import java.io.*;
+import java.text.DecimalFormat;
 import java.util.*;
 
 /**
@@ -56,7 +57,7 @@ public class RequestHandler {
 
 
     public RequestHandler() {
-        orders = new ArrayList<>();
+        orders = loadInitialOrders();
         response = getCommandErrorMessage();
         audioOrder = new SendVoice();
         menuName = "";
@@ -113,6 +114,12 @@ public class RequestHandler {
                 setResponse(result);
         }
 
+    }
+
+    private List<Order> loadInitialOrders() {
+        List<Order> result = new ArrayList<>();
+        result.add(new Order(-1, "Sally", "burger"));
+        return result;
     }
 
     public void setResponse(String response) {
@@ -185,14 +192,14 @@ public class RequestHandler {
         StringBuilder builder = new StringBuilder();
 
         // Notification that order was added
-        builder.append("`" + user.getFirstName() + "` added 1 " + text + "!\n");
+        builder.append("*" + user.getFirstName() + " added 1 " + text + "!* \u2728\n");
         builder.append("\n");
 
         // Load current orders
         Map<String, List<Order>> ordersByUser = loadItemsByUser();
         // For each user
         for (String username : ordersByUser.keySet()) {
-            builder.append(username + " ordered:\n");
+            builder.append("`" + username + "` ordered:\n");
             double totalPriceForUser = 0;
 
             // For each unique item ordered by user
@@ -206,7 +213,7 @@ public class RequestHandler {
                 totalPriceForUser += totalPriceForItem;
                 builder.append(buildItemString(orderName, numOrders, totalPriceForItem));
             }
-            builder.append("Total: " + totalPriceForUser + "\n");
+            builder.append("\uD83D\uDCB8 *$" + new DecimalFormat("0.00").format(totalPriceForUser) + "*\n");
             builder.append("\n");
         }
 
@@ -423,7 +430,7 @@ public class RequestHandler {
             orderName += 's';
         }
 
-        return numOrders + " x " + orderName + " -- $" + totalPrice + "\n";
+        return numOrders + " x " + orderName + " -- $" + new DecimalFormat("0.00").format(totalPrice) + "\n";
     }
 
     private static String removeFirstWord(String str) {
