@@ -8,10 +8,6 @@ import java.util.List;
 public class Menu {
     private static List<MenuItem> menuList = new ArrayList<>();
 
-    public Menu(){
-
-    }
-
     public List<MenuItem> getMenuList(List<MenuItem> menuList) {
         return menuList;
     }
@@ -23,8 +19,11 @@ public class Menu {
     public void loadMenu() {
         MenuItem food1 = new MenuItem("Spring Chicken", 12);
         MenuItem food2 = new MenuItem("Salmon Rosti", 15);
+        MenuItem food3 = new MenuItem("Curry Cauliflower", 11);
+
 
         menuList.add(food1);
         menuList.add(food2);
+        menuList.add(food3);
     }
 }

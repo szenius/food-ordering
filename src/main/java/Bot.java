@@ -34,7 +34,7 @@ public class Bot extends TelegramLongPollingBot {
     }
 
     public String getBotUsername() {
-        return "FoodOrderingBot";
+        return "DinoBot";
     }
 
     public String getBotToken() {

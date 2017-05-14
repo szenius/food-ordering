@@ -33,15 +33,20 @@ public class RequestHandler {
     private String response;
     private SendVoice audioOrder;
 
+    private static final Map<String, Menu> menuMap = new HashMap<>();
+
     public RequestHandler() {
         orders = new ArrayList<>();
         response = getCommandErrorMessage();
         audioOrder = new SendVoice();
+
     }
 
     public void execute(Message message) {
         List<MessageEntity> entities = message.getEntities();
         Command command = parseCommand(entities.get(0));
+
+
 
         if (command == null) {
             setResponse(getCommandErrorMessage());
@@ -212,6 +217,15 @@ public class RequestHandler {
     // View Menu
     public String loadMenu(String url) {
         LOGGER.info("Loading Menu: {}", url);
+
+        String key = "http://www.madenicenyc.com/menu/";
+//        List<Menu> menu = new List<Menu>() {
+//        }
+//
+//        if(menuMap.get(key)) {
+//
+//        }
+
         menuList.loadMenu();
         String[] tokens = url.trim().split("\\.");
         String restaurant = tokens[1];
