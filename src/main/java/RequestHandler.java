@@ -25,6 +25,16 @@ import java.util.*;
 public class RequestHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(RequestHandler.class);
 
+    // Help message
+    private static final String MESSAGE_HELP = "Examples to execute command!\n\n"
+            + "To view menu:\n" + "/menu shakeshack\n\n"
+            + "To add orders:\n" + "/add shroom burger\n\n"
+            + "To clear orders:\n" + "/clear\n\n"
+            + "To view orders\n" + "/view\n\n"
+            + "To list orders:\n" + "/list\n\n"
+            + "To split orders by users:\n" + "/split\n\n"
+            + "To order:\n" + "/order\n";
+
     // Error messages
     private static final String MESSAGE_COMMAND_ERROR = "Sorry, I didn't understand that! Could you try again?";
     private static final String MESSAGE_TTS_ERROR = "We could not generate your orders in an audio file...";
@@ -66,6 +76,10 @@ public class RequestHandler {
         String result;
 
         switch (command) {
+            case HELP:
+                result = loadHelp();
+                setResponse(result);
+                break;
             case ADD:
                 result = addOrder(text, user);
                 setResponse(result);
@@ -137,6 +151,12 @@ public class RequestHandler {
 
     public String getMenuName() {
         return this.menuName;
+    }
+
+    // load help message
+    private String loadHelp() {
+        LOGGER.info("Opening help message");
+        return getHelpMessage();
     }
 
     // Add an order
@@ -415,6 +435,8 @@ public class RequestHandler {
         LOGGER.info("Parsing command: {}", cmdString);
 
         switch (cmdString) {
+            case "help":
+                return Command.HELP;
             case "add":
                 return Command.ADD;
             case "clear":
@@ -446,11 +468,14 @@ public class RequestHandler {
         return MESSAGE_NO_ORDERS;
     }
 
+    private static String getHelpMessage() { return MESSAGE_HELP; }
+
     private static boolean isValidMenu(String name) {
         return MENU_SHAKE_SHACK.contains(name.toLowerCase());
     }
 
     public enum Command {
+        HELP,
         ADD,
         CLEAR,
         VIEW,

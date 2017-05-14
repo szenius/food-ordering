@@ -24,7 +24,7 @@ public class Bot extends TelegramLongPollingBot {
     public void onUpdateReceived(Update update) {
         try {
             if (update.hasMessage() && update.getMessage().hasEntities() && update.getMessage().hasText()) {
-                respond(update);
+                    respond(update);
             }
         } catch (TelegramApiException e) {
             LOGGER.error("Could not send message", e);
