@@ -77,7 +77,9 @@ public class RequestHandler {
 
         switch (command) {
             case HELP:
-                loadHelp();
+                result = loadHelp();
+                setResponse(result);
+                break;
             case ADD:
                 result = addOrder(text, user);
                 setResponse(result);
