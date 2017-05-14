@@ -1,3 +1,7 @@
+import com.nexmo.client.NexmoClient;
+import com.nexmo.client.auth.AuthMethod;
+import com.nexmo.client.auth.JWTAuthMethod;
+import com.nexmo.client.voice.Call;
 import com.sun.xml.internal.ws.util.StringUtils;
 import org.apache.http.auth.AuthenticationException;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -16,6 +20,7 @@ import org.telegram.telegrambots.api.objects.MessageEntity;
 import org.telegram.telegrambots.api.objects.User;
 
 import java.io.*;
+import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.*;
 
@@ -109,6 +114,9 @@ public class RequestHandler {
                 SendVoice audioMessage = ttsOrder(message.getChatId());
                 setAudio(audioMessage);
                 break;
+            case CALL:
+                setResponse(initiateCall());
+                break;
             default:
                 result = getCommandErrorMessage();
                 setResponse(result);
@@ -118,6 +126,17 @@ public class RequestHandler {
 
     private List<Order> loadInitialOrders() {
         List<Order> result = new ArrayList<>();
+        result.add(new Order(-1, "Sally", "cheese fries"));
+        result.add(new Order(-1, "Sally", "cheese fries"));
+        result.add(new Order(-2, "Zhi Sheng", "fries"));
+        result.add(new Order(-2, "Zhi Sheng", "coke"));
+        result.add(new Order(-2, "Zhi Sheng", "coke"));
+        result.add(new Order(-2, "Zhi Sheng", "shroom burger"));
+        result.add(new Order(-3, "Amanda", "shack stack"));
+        result.add(new Order(-4, "Rachel", "cheese fries"));
+        result.add(new Order(-4, "Rachel", "fries"));
+        result.add(new Order(-4, "Rachel", "shroom burger"));
+
         return result;
     }
 
@@ -172,7 +191,7 @@ public class RequestHandler {
         String userName = user.getFirstName();
         String foodName = text;
 
-        orders.add(new Order(userId, userName, StringUtils.capitalize(foodName)));
+        orders.add(new Order(userId, userName, foodName.toLowerCase()));
 
         // Load menu
         ShakeShackMenu menu;
@@ -256,8 +275,9 @@ public class RequestHandler {
         builder.append("Are we ready to order? \uD83D\uDE01\n\n");
         for (String key : collated.keySet()) {
             int numItems = collated.get(key);
+            String foodName = StringUtils.capitalize(key);
             builder.append("`" + numItems);
-            builder.append(" x " + key);
+            builder.append(" x " + foodName);
 
             if (numItems > 1 && !key.endsWith("s")) {
                 builder.append("s");
@@ -440,13 +460,30 @@ public class RequestHandler {
         return null;
     }
 
+    private String initiateCall() {
+        String applicationId = "f3d2e1e0-3fc5-4d24-8b34-f3650c55dd78";
+        String privateKey = "private.key";
+        String fromNumber = "+12035338541";
+        String toNumber = "+13475679054";
+
+        try {
+            AuthMethod auth = new JWTAuthMethod(applicationId, Paths.get("private.key"));
+            NexmoClient client = new NexmoClient(auth);
+            client.getVoiceClient().createCall(new Call(toNumber, fromNumber, "http://nexmo-community.github.io/ncco-examples/first_call_talk.json"));
+        } catch (Exception e) {
+            LOGGER.error("Nexmo problem", e);
+        }
+
+        return "Calling `Shake Shack` for you now... \uD83D\uDCDE";
+    }
+
     private String buildItemString(String orderName, int numOrders, double totalPrice) {
         // If more than 1 order, append s to food name unless it ends with s
         if (numOrders > 1 && !orderName.endsWith("s")) {
             orderName += 's';
         }
 
-        return numOrders + " x " + orderName + " -- $" + new DecimalFormat("0.00").format(totalPrice) + "\n";
+        return numOrders + " x " + StringUtils.capitalize(orderName) + " -- $" + new DecimalFormat("0.00").format(totalPrice) + "\n";
     }
 
     private static String removeFirstWord(String str) {
@@ -474,6 +511,8 @@ public class RequestHandler {
                 return Command.ORDER;
             case "menu":
                 return Command.MENU;
+            case "call":
+                return Command.CALL;
             default:
                 return null;
         }
@@ -502,10 +541,10 @@ public class RequestHandler {
         ADD,
         CLEAR,
         VIEW,
-        COLLATE,
         SPLIT,
         ORDER,
         MENU,
-        LIST
+        LIST,
+        CALL
     }
 }
