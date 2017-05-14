@@ -31,7 +31,7 @@ public class RequestHandler {
             + "To add orders:\n" + "/add shroom burger\n\n"
             + "To clear orders:\n" + "/clear\n\n"
             + "To view orders\n" + "/view\n\n"
-            + "To collate orders:\n" + "/collate\n\n"
+            + "To list orders:\n" + "/list\n\n"
             + "To split orders by users:\n" + "/split\n\n"
             + "To order:\n" + "/order\n";
 
