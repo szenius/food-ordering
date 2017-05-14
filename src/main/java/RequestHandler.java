@@ -1,9 +1,19 @@
+import org.apache.http.auth.AuthenticationException;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.auth.BasicScheme;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.telegram.telegrambots.api.methods.send.SendVoice;
 import org.telegram.telegrambots.api.objects.Message;
 import org.telegram.telegrambots.api.objects.MessageEntity;
 import org.telegram.telegrambots.api.objects.User;
 
+import java.io.*;
 import java.util.*;
 
 /**
@@ -14,47 +24,82 @@ public class RequestHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(RequestHandler.class);
 
     private static final String MESSAGE_COMMAND_ERROR = "Sorry, I didn't understand that! Could you try again?";
+    private static final String MESSAGE_TTS_ERROR = "We could not generate your orders in an audio file...";
+    private static final String MESSAGE_NO_ORDERS = "You have no orders! Try adding one with '/add'!";
 
     private static List<Order> orders; // TODO: change to List<Order>
 
     private static Menu menuList = new Menu();
+    private String response;
+    private SendVoice audioOrder;
 
     public RequestHandler() {
         orders = new ArrayList<>();
+        response = getCommandErrorMessage();
+        audioOrder = new SendVoice();
     }
 
-    public String execute(Message message) {
+    public void execute(Message message) {
         List<MessageEntity> entities = message.getEntities();
         Command command = parseCommand(entities.get(0));
 
         if (command == null) {
-            return getCommandErrorMessage();
+            setResponse(getCommandErrorMessage());
         }
 
         String text = removeFirstWord(message.getText());
         User user = message.getFrom();
         String url = removeFirstWord(message.getText());
 
+        String result = null;
+
         switch (command) {
             case ADD:
-                return addOrder(text, user);
+                result = addOrder(text, user);
+                break;
             case CLEAR:
-                return clearOrders();
+                result = clearOrders();
+                break;
             case VIEW:
-                return viewOrders();
+                result = viewOrders();
+                break;
             case COLLATE:
-                return collateOrders();
+                result = collateOrders();
+                break;
             case MENU:
-                return loadMenu(url);
+                result = loadMenu(url);
             case SPLIT:
-                return splitOrdersByUser();
+                result = splitOrdersByUser();
+                break;
+            case ORDER:
+                SendVoice audioMessage = ttsOrder(message.getChatId());
+                setAudio(audioMessage);
+                break;
             default:
-                return getCommandErrorMessage();
+                result = getCommandErrorMessage();
         }
+
+        setResponse(result);
+    }
+
+    public void setResponse(String response) {
+        this.response = response;
+    }
+
+    public String getResponse() {
+        return response;
+    }
+
+    public void setAudio(SendVoice audio) {
+        this.audioOrder = audio;
+    }
+
+    public SendVoice getAudioOrder() {
+        return audioOrder;
     }
 
     // Add an order
-    public String addOrder(String text, User user) {
+    private String addOrder(String text, User user) {
         LOGGER.info("We are trying to add this order: {}", text);
         String[] tokens = text.trim().split(", ");
         Integer userId = user.getId();
@@ -67,16 +112,16 @@ public class RequestHandler {
     }
 
     // Clear all orders
-    public String clearOrders() {
+    private String clearOrders() {
         LOGGER.info("Clearing orders.");
         orders.clear();
         return "Cleared your orders!";
     }
 
     // View all orders, no grouping
-    public String viewOrders() {
+    private String viewOrders() {
         if (orders.isEmpty()) {
-            return "You have no orders! Try adding one with '/add'!";
+            return getNoOrdersMessage();
         }
 
         StringBuilder builder = new StringBuilder();
@@ -89,7 +134,10 @@ public class RequestHandler {
     }
 
     // Collate orders by item
-    public String collateOrders() {
+    private String collateOrders() {
+        if (orders.isEmpty()) {
+            return getNoOrdersMessage();
+        }
         Map<String, Integer> result = new HashMap<>();
 
         // Load orders into map (collated)
@@ -121,7 +169,7 @@ public class RequestHandler {
     }
 
     // Split orders by user (bill splitting)
-    public String splitOrdersByUser() {
+    private String splitOrdersByUser() {
         Map<String, List<Order>> result = new HashMap<>();
 
         // Load orders into Map
@@ -170,11 +218,69 @@ public class RequestHandler {
         return restaurant + " menu has been loaded.";
     }
 
-    public String removeFirstWord(String str) {
+    private SendVoice ttsOrder(Long chatId) {
+        CloseableHttpResponse response = makeTtsRequest();
+
+        SendVoice audioOrder = new SendVoice();
+        try {
+            audioOrder.setNewVoice("Orders", response.getEntity().getContent());
+        } catch (IOException ioe) {
+            LOGGER.error("Error attaching audio file", ioe);
+        }
+        audioOrder.setChatId(chatId);
+        return audioOrder;
+    }
+
+    private String convertOrdersToJson() {
+        LOGGER.info("Converting {} to audio", collateOrders());
+        return "{\"text\":\"" + collateOrders().replaceAll("\n", "<break/>") + "\"}";
+    }
+
+    private CloseableHttpResponse makeTtsRequest() {
+        String url = "https://stream.watsonplatform.net/text-to-speech/api/v1/synthesize";
+
+        // Create an instance of HttpClient.
+        CloseableHttpClient client = HttpClients.createDefault();
+        HttpPost httpPost = new HttpPost(url);
+
+        try {
+            UsernamePasswordCredentials credentials =
+                    new UsernamePasswordCredentials("de758945-6764-4ead-847e-ab0a4c5b1625", "nsCpFNOj2AsC");
+            httpPost.addHeader(new BasicScheme().authenticate(credentials, httpPost, null));
+        } catch (AuthenticationException ae) {
+            LOGGER.error("Could not authenticate", ae);
+        }
+
+        try {
+            httpPost.setEntity(new StringEntity(convertOrdersToJson()));
+        } catch (UnsupportedEncodingException uee) {
+            LOGGER.error("Could not set entity for HTTP Post", uee);
+        }
+        httpPost.setHeader("Content-Type", "application/json");
+        httpPost.setHeader("Accept", "audio/wav");
+
+        try {
+            // Execute the method.
+            CloseableHttpResponse response = client.execute(httpPost);
+
+            if (response.getStatusLine().getStatusCode() != 200) {
+                LOGGER.error("Method failed: {}", response.getStatusLine().getStatusCode());
+            }
+
+            // Read the response body.
+            return response;
+        } catch (IOException ioe) {
+            LOGGER.error("Could not write output file", ioe);
+        }
+
+        return null;
+    }
+
+    private static String removeFirstWord(String str) {
         return str.substring(str.indexOf(" ") + 1);
     }
 
-    public Command parseCommand(MessageEntity command) {
+    private static Command parseCommand(MessageEntity command) {
         String cmdString = command.getText().substring(1);
         LOGGER.info("Parsing command: {}", cmdString);
 
@@ -198,8 +304,16 @@ public class RequestHandler {
         }
     }
 
-    public String getCommandErrorMessage() {
+    private static String getCommandErrorMessage() {
         return MESSAGE_COMMAND_ERROR;
+    }
+
+    private static String getTtsErrorMessage() {
+        return MESSAGE_TTS_ERROR;
+    }
+
+    private static String getNoOrdersMessage() {
+        return MESSAGE_NO_ORDERS;
     }
 
     public enum Command {
