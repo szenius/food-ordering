@@ -93,7 +93,7 @@ public class RequestHandler {
                 result = viewOrders();
                 setResponse(result);
                 break;
-            case COLLATE:
+            case LIST:
                 result = collateOrders();
                 setResponse(result);
                 break;
@@ -118,7 +118,6 @@ public class RequestHandler {
 
     private List<Order> loadInitialOrders() {
         List<Order> result = new ArrayList<>();
-        result.add(new Order(-1, "Sally", "burger"));
         return result;
     }
 
@@ -217,6 +216,8 @@ public class RequestHandler {
             builder.append("\n");
         }
 
+        LOGGER.debug("This is the add view: {}", builder.toString());
+
         return builder.toString();
     }
 
@@ -244,21 +245,31 @@ public class RequestHandler {
 
     // Collate orders by item
     private String collateOrders() {
-//        if (orders.isEmpty()) {
-//            return getNoOrdersMessage();
-//        }
-//        Map<String, Integer> result = loadOrdersByItem(orders);
-//
-//        // Load collated orders into String
-//        StringBuilder builder = new StringBuilder();
-//        builder.append("Collated your orders!\n\n");
-//
-//        for (String key : result.keySet()) {
-//            builder.append(buildItemString(key, result.get(key)));
-//        }
-//
-//        return builder.toString();
-        return "This function is currently not usable";
+        if (orders.isEmpty()) {
+            return getNoOrdersMessage();
+        }
+
+        double totalPayable = 0;
+
+        Map<String, Integer> collated = loadOrdersByItem(orders);
+        StringBuilder builder = new StringBuilder();
+        builder.append("Are we ready to order? \uD83D\uDE01\n\n");
+        for (String key : collated.keySet()) {
+            int numItems = collated.get(key);
+            builder.append("`" + numItems);
+            builder.append(" x " + key);
+
+            if (numItems > 1 && !key.endsWith("s")) {
+                builder.append("s");
+            }
+
+            totalPayable += numItems * menuMap.get(getMenuName()).getPrice(key);
+
+            builder.append("\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t`\n");
+        }
+        builder.append("\n\uD83D\uDCB8 *$" + new DecimalFormat("0.00").format(totalPayable) + "*\n\n");
+        builder.append("If you are ready to order, type the \"/order\" command!");
+        return builder.toString();
     }
 
     // Load into map for collate and TTS
@@ -369,14 +380,19 @@ public class RequestHandler {
     }
 
     private String convertOrdersToJson() {
-        LOGGER.info("Converting {} to audio", collateOrders());
         Map<String, Integer> collated = loadOrdersByItem(orders);
         StringBuilder builder = new StringBuilder();
         builder.append("Hi, I would like to place a delivery order.\n");
         builder.append("Can I have ");
         for (String key : collated.keySet()) {
-            builder.append(collated.get(key));
+            int numItems = collated.get(key);
+            builder.append(numItems);
             builder.append(" " + key);
+
+            if (numItems > 1 && !key.endsWith("s")) {
+                builder.append("s");
+            }
+
             builder.append("\n");
         }
         builder.append("Thank you!\n");
@@ -450,8 +466,8 @@ public class RequestHandler {
                 return Command.CLEAR;
             case "view":
                 return Command.VIEW;
-            case "collate":
-                return Command.COLLATE;
+            case "list":
+                return Command.LIST;
             case "split":
                 return Command.SPLIT;
             case "order":
@@ -489,6 +505,7 @@ public class RequestHandler {
         COLLATE,
         SPLIT,
         ORDER,
-        MENU
+        MENU,
+        LIST
     }
 }

@@ -34,15 +34,13 @@ public class ShakeShackMenu {
         MenuItem food2 = new MenuItem("shack stack", 9.95);
         MenuItem food3 = new MenuItem("fries", 2.99);
         MenuItem food4 = new MenuItem("cheese fries", 3.99);
-        MenuItem food5 = new MenuItem("small coke", 2.35);
-        MenuItem food6 = new MenuItem("large coke", 2.85);
+        MenuItem food5 = new MenuItem("coke", 2.35);
 
         menuList.put(food1.getFoodName(), food1);
         menuList.put(food2.getFoodName(), food2);
         menuList.put(food3.getFoodName(), food3);
         menuList.put(food4.getFoodName(), food4);
         menuList.put(food5.getFoodName(), food5);
-        menuList.put(food6.getFoodName(), food6);
     }
 
     public double getPrice(String foodName) {
