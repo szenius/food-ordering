@@ -4,8 +4,7 @@ import org.telegram.telegrambots.api.objects.Message;
 import org.telegram.telegrambots.api.objects.MessageEntity;
 import org.telegram.telegrambots.api.objects.User;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 /**
  * @author SzeYing
@@ -47,6 +46,8 @@ public class RequestHandler {
                 return collateOrders();
             case MENU:
                 return loadMenu(url);
+            case SPLIT:
+                return splitOrdersByUser();
             default:
                 return getCommandErrorMessage();
         }
@@ -89,7 +90,75 @@ public class RequestHandler {
 
     // Collate orders by item
     public String collateOrders() {
-        return "STILL BUILDING THE COLLATE";
+        Map<String, Integer> result = new HashMap<>();
+
+        // Load orders into map (collated)
+        for (Order order : orders) {
+
+            if (result.containsKey(order.getCollateString())) {
+                // Already exists in map
+
+                Integer count = result.get(order.getCollateString()) + 1;
+                result.replace(order.getCollateString(), count);
+            } else {
+                // Seeing this order for the first time
+
+                result.put(order.getCollateString(), 1);
+            }
+
+        }
+
+        // Load collated orders into String
+        StringBuilder builder = new StringBuilder();
+        builder.append("Collated your orders!\n\n");
+
+        for (String key : result.keySet()) {
+            builder.append(key + " x" + result.get(key));
+            builder.append('\n');
+        }
+
+        return builder.toString();
+    }
+
+    // Split orders by user (bill splitting)
+    public String splitOrdersByUser() {
+        Map<String, List<Order>> result = new HashMap<>();
+
+        // Load orders into Map
+        for (Order order : orders) {
+            if (result.containsKey(order.getUserName())) {
+                // Already exists
+
+                result.get(order.getUserName()).add(order);
+            } else {
+                // Found first order by this user
+
+                result.put(order.getUserName(), new ArrayList<>(Arrays.asList(order)));
+            }
+        }
+
+        // Load result into String
+        StringBuilder builder = new StringBuilder();
+        builder.append("Split your bill by user:\n\n");
+
+        for (String userName : result.keySet()) {
+            builder.append(userName + " ordered:\n");
+            List<Order> ordersByUser = result.get(userName);
+            double totalPayable = 0;
+
+            for (Order order : ordersByUser) {
+                builder.append(order.getCollateString());
+                builder.append('\n');
+
+                totalPayable += order.getPrice();
+            }
+
+            builder.append("Total = " + String.valueOf(totalPayable));
+            builder.append('\n');
+            builder.append('\n');
+        }
+
+        return builder.toString();
     }
 
     // View Menu
