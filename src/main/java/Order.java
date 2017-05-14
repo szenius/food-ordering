@@ -1,7 +1,7 @@
 /**
- * Created by zhengyu on 5/13/17.
+ * @author zhengyu
+ * @since 5/13/17
  */
-
 public class Order {
     private int userId;
     private String username, name;

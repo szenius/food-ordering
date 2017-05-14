@@ -1,14 +1,11 @@
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.telegram.telegrambots.api.objects.Contact;
 import org.telegram.telegrambots.api.objects.Message;
 import org.telegram.telegrambots.api.objects.MessageEntity;
 import org.telegram.telegrambots.api.objects.User;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * @author SzeYing
@@ -20,6 +17,8 @@ public class RequestHandler {
     private static final String MESSAGE_COMMAND_ERROR = "Sorry, I didn't understand that! Could you try again?";
 
     private static List<Order> orders; // TODO: change to List<Order>
+
+    private static Menu menuList = new Menu();
 
     public RequestHandler() {
         orders = new ArrayList<>();
@@ -35,6 +34,7 @@ public class RequestHandler {
 
         String text = removeFirstWord(message.getText());
         User user = message.getFrom();
+        String url = removeFirstWord(message.getText());
 
         switch (command) {
             case ADD:
@@ -45,6 +45,8 @@ public class RequestHandler {
                 return viewOrders();
             case COLLATE:
                 return collateOrders();
+            case MENU:
+                return loadMenu(url);
             default:
                 return getCommandErrorMessage();
         }
@@ -90,6 +92,15 @@ public class RequestHandler {
         return "STILL BUILDING THE COLLATE";
     }
 
+    // View Menu
+    public String loadMenu(String url) {
+        LOGGER.info("Loading Menu: {}", url);
+        menuList.loadMenu();
+        String[] tokens = url.trim().split("\\.");
+        String restaurant = tokens[1];
+        return restaurant + " menu has been loaded.";
+    }
+
     public String removeFirstWord(String str) {
         return str.substring(str.indexOf(" ") + 1);
     }
@@ -111,6 +122,8 @@ public class RequestHandler {
                 return Command.SPLIT;
             case "order":
                 return Command.ORDER;
+            case "menu":
+                return Command.MENU;
             default:
                 return null;
         }
@@ -126,6 +139,7 @@ public class RequestHandler {
         VIEW,
         COLLATE,
         SPLIT,
-        ORDER
+        ORDER,
+        MENU
     }
 }
