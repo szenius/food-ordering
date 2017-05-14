@@ -26,7 +26,7 @@ public class RequestHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(RequestHandler.class);
 
     // Help message
-    private static final String MESSAGE_HELP = "Examples to execute command.\n\n"
+    private static final String MESSAGE_HELP = "Examples to execute command!\n\n"
             + "To view menu:\n" + "/menu shakeshack\n\n"
             + "To add orders:\n" + "/add shroom burger\n\n"
             + "To clear orders:\n" + "/clear\n\n"
