@@ -7,11 +7,10 @@ public class Order {
     private String username, name;
     private double price;
 
-    public Order(Integer userId, String userName, String name, double price) {
+    public Order(Integer userId, String userName, String name) {
         this.userId = userId;
         this.username = userName;
         this.name = name;
-        this.price = price;
     }
 
     public Integer getUserId() {
@@ -26,18 +25,9 @@ public class Order {
         return name;
     }
 
-    public double getPrice() {
-        return price;
-    }
-
     // For view command
     public String getViewString() {
-        return getCollateString() + " by " + getUserName();
-    }
-
-    // For collate command
-    public String getCollateString() {
-        return getName() + ", $" + String.valueOf(getPrice());
+        return "" + getName() + " by " + getUserName() + "";
     }
 
     public void setUserid(Integer newUserid){

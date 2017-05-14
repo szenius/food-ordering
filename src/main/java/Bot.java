@@ -1,14 +1,10 @@
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.telegram.telegrambots.api.methods.send.SendAudio;
 import org.telegram.telegrambots.api.methods.send.SendMessage;
 import org.telegram.telegrambots.api.objects.Message;
-import org.telegram.telegrambots.api.objects.MessageEntity;
 import org.telegram.telegrambots.api.objects.Update;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.exceptions.TelegramApiException;
-
-import java.util.List;
 
 /**
  * @author SzeYing
@@ -52,6 +48,7 @@ public class Bot extends TelegramLongPollingBot {
             SendMessage result = new SendMessage();
             result.setText(textResponse);
             result.setChatId(message.getChatId());
+            result.setParseMode("Markdown");
             sendMessage(result);
         } else {
             sendVoice(handler.getAudioOrder());

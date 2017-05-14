@@ -1,3 +1,4 @@
+import com.sun.xml.internal.ws.util.StringUtils;
 import org.apache.http.auth.AuthenticationException;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -106,14 +107,36 @@ public class RequestHandler {
     // Add an order
     private String addOrder(String text, User user) {
         LOGGER.info("We are trying to add this order: {}", text);
-        String[] tokens = text.trim().split(", ");
         Integer userId = user.getId();
         String userName = user.getFirstName();
-        String foodName = tokens[0];
-        double price = Double.parseDouble(tokens[1]);
+        String foodName = text;
 
-        orders.add(new Order(userId, userName, foodName, price));
-        return "We added your order " + text + " by " + user.getFirstName();
+        orders.add(new Order(userId, userName, StringUtils.capitalize(foodName)));
+
+        /** Build response **/
+        StringBuilder builder = new StringBuilder();
+
+        // Notification that order was added
+        builder.append("`" + user.getFirstName() + "` added 1 " + text + "!\n");
+        builder.append("\n");
+
+        // Load current orders
+        Map<String, List<Order>> ordersByUser = loadItemsByUser();
+        // For each user
+        for (String username : ordersByUser.keySet()) {
+            builder.append(username + " ordered:\n");
+
+            // For each unique item ordered by user
+            Map<String, Integer> ordersByItem = loadOrdersByItem(ordersByUser.get(username));
+            for (String orderName : ordersByItem.keySet()) {
+                int numOrders = ordersByItem.get(orderName);
+                builder.append(buildItemString(orderName, numOrders));
+            }
+
+            builder.append("\n");
+        }
+
+        return builder.toString();
     }
 
     // Clear all orders
@@ -143,38 +166,68 @@ public class RequestHandler {
         if (orders.isEmpty()) {
             return getNoOrdersMessage();
         }
-        Map<String, Integer> result = new HashMap<>();
-
-        // Load orders into map (collated)
-        for (Order order : orders) {
-
-            if (result.containsKey(order.getCollateString())) {
-                // Already exists in map
-
-                Integer count = result.get(order.getCollateString()) + 1;
-                result.replace(order.getCollateString(), count);
-            } else {
-                // Seeing this order for the first time
-
-                result.put(order.getCollateString(), 1);
-            }
-
-        }
+        Map<String, Integer> result = loadOrdersByItem(orders);
 
         // Load collated orders into String
         StringBuilder builder = new StringBuilder();
         builder.append("Collated your orders!\n\n");
 
         for (String key : result.keySet()) {
-            builder.append(key + " x" + result.get(key));
+            builder.append(buildItemString(key, result.get(key)));
+        }
+
+        return builder.toString();
+    }
+
+    // Load into map for collate and TTS
+    private Map<String, Integer> loadOrdersByItem(List<Order> orders) {
+        Map<String, Integer> result = new HashMap<>();
+        // Load orders into map (collated)
+        for (Order order : orders) {
+            if (result.containsKey(order.getName())) {
+                // Already exists in map
+
+                Integer count = result.get(order.getName()) + 1;
+                result.replace(order.getName(), count);
+            } else {
+                // Seeing this order for the first time
+
+                result.put(order.getName(), 1);
+            }
+        }
+        return result;
+    }
+
+    // Split orders by user (bill splitting)
+    private String splitOrdersByUser() {
+        Map<String, List<Order>> result = loadItemsByUser();
+
+        // Load result into String
+        StringBuilder builder = new StringBuilder();
+        builder.append("Split your bill by user:\n\n");
+
+        for (String userName : result.keySet()) {
+            builder.append(userName + " ordered:\n");
+            List<Order> ordersByUser = result.get(userName);
+            double totalPayable = 0;
+
+            for (Order order : ordersByUser) {
+                builder.append(order.getName());
+                builder.append('\n');
+
+                // TODO: totalPayable requires menu price
+//                totalPayable += order.getPrice();
+            }
+
+            builder.append("Total = " + String.valueOf(totalPayable));
+            builder.append('\n');
             builder.append('\n');
         }
 
         return builder.toString();
     }
 
-    // Split orders by user (bill splitting)
-    private String splitOrdersByUser() {
+    private Map<String, List<Order>> loadItemsByUser() {
         Map<String, List<Order>> result = new HashMap<>();
 
         // Load orders into Map
@@ -190,28 +243,7 @@ public class RequestHandler {
             }
         }
 
-        // Load result into String
-        StringBuilder builder = new StringBuilder();
-        builder.append("Split your bill by user:\n\n");
-
-        for (String userName : result.keySet()) {
-            builder.append(userName + " ordered:\n");
-            List<Order> ordersByUser = result.get(userName);
-            double totalPayable = 0;
-
-            for (Order order : ordersByUser) {
-                builder.append(order.getCollateString());
-                builder.append('\n');
-
-                totalPayable += order.getPrice();
-            }
-
-            builder.append("Total = " + String.valueOf(totalPayable));
-            builder.append('\n');
-            builder.append('\n');
-        }
-
-        return builder.toString();
+        return result;
     }
 
     // View Menu
@@ -232,6 +264,7 @@ public class RequestHandler {
         return restaurant + " menu has been loaded.";
     }
 
+    // Text to speech ordering!!!!!!
     private SendVoice ttsOrder(Long chatId) {
         CloseableHttpResponse response = makeTtsRequest();
 
@@ -247,7 +280,18 @@ public class RequestHandler {
 
     private String convertOrdersToJson() {
         LOGGER.info("Converting {} to audio", collateOrders());
-        return "{\"text\":\"" + collateOrders().replaceAll("\n", "<break/>") + "\"}";
+        Map<String, Integer> collated = loadOrdersByItem(orders);
+        StringBuilder builder = new StringBuilder();
+        builder.append("Hi, I would like to place a delivery order.\n");
+        builder.append("Can I have ");
+        for (String key : collated.keySet()) {
+            builder.append(collated.get(key));
+            builder.append(" " + key);
+            builder.append("\n");
+        }
+        builder.append("Thank you!\n");
+
+        return "{\"text\":\"" + builder.toString().replaceAll("\n", "<break/>") + "\"}";
     }
 
     private CloseableHttpResponse makeTtsRequest() {
@@ -288,6 +332,14 @@ public class RequestHandler {
         }
 
         return null;
+    }
+
+    private static String buildItemString(String orderName, int numOrders) {
+        if (numOrders > 1 && !orderName.endsWith("s")) {
+            orderName += 's';
+        }
+
+        return numOrders + " x " + orderName + "\n";
     }
 
     private static String removeFirstWord(String str) {
