@@ -35,8 +35,9 @@ public class RequestHandler {
     private static List<Order> orders;
 
     // ShakeShackMenu
-    private static final String MENU_SHAKE_SHACK = "Shake Shack";
+    private static final List<String> MENU_SHAKE_SHACK = new ArrayList<>(Arrays.asList("shakeshack", "shake shack"));
     private static Map<String, ShakeShackMenu> menuMap = new HashMap<>();
+    private String menuName;
 
     // Responses
     private String response;
@@ -48,14 +49,12 @@ public class RequestHandler {
         orders = new ArrayList<>();
         response = getCommandErrorMessage();
         audioOrder = new SendVoice();
-
+        menuName = "";
     }
 
     public void execute(Message message) {
         List<MessageEntity> entities = message.getEntities();
         Command command = parseCommand(entities.get(0));
-
-
 
         if (command == null) {
             setResponse(getCommandErrorMessage());
@@ -132,6 +131,14 @@ public class RequestHandler {
         return photoMessage;
     }
 
+    public void setMenuName(String menuName) {
+        this.menuName = menuName;
+    }
+
+    public String getMenuName() {
+        return this.menuName;
+    }
+
     // Add an order
     private String addOrder(String text, User user) {
         LOGGER.info("We are trying to add this order: {}", text);
@@ -140,6 +147,19 @@ public class RequestHandler {
         String foodName = text;
 
         orders.add(new Order(userId, userName, StringUtils.capitalize(foodName)));
+
+        // Load menu
+        ShakeShackMenu menu;
+
+        if (menuMap.containsKey(getMenuName())) {
+            LOGGER.info("Found menu in cache: {}", getMenuName());
+            menu = menuMap.get(getMenuName());
+        } else {
+            LOGGER.warn("Did not find menu in cache: {}", getMenuName());
+            menu = new ShakeShackMenu();
+            setMenuName("shakeshack");
+            menuMap.put(getMenuName(), menu);
+        }
 
         /** Build response **/
         StringBuilder builder = new StringBuilder();
@@ -153,14 +173,20 @@ public class RequestHandler {
         // For each user
         for (String username : ordersByUser.keySet()) {
             builder.append(username + " ordered:\n");
+            double totalPriceForUser = 0;
 
             // For each unique item ordered by user
             Map<String, Integer> ordersByItem = loadOrdersByItem(ordersByUser.get(username));
+
             for (String orderName : ordersByItem.keySet()) {
                 int numOrders = ordersByItem.get(orderName);
-                builder.append(buildItemString(orderName, numOrders));
-            }
 
+                // Look for price
+                double totalPriceForItem = menu.getPrice(orderName) * numOrders;
+                totalPriceForUser += totalPriceForItem;
+                builder.append(buildItemString(orderName, numOrders, totalPriceForItem));
+            }
+            builder.append("Total: " + totalPriceForUser + "\n");
             builder.append("\n");
         }
 
@@ -191,20 +217,21 @@ public class RequestHandler {
 
     // Collate orders by item
     private String collateOrders() {
-        if (orders.isEmpty()) {
-            return getNoOrdersMessage();
-        }
-        Map<String, Integer> result = loadOrdersByItem(orders);
-
-        // Load collated orders into String
-        StringBuilder builder = new StringBuilder();
-        builder.append("Collated your orders!\n\n");
-
-        for (String key : result.keySet()) {
-            builder.append(buildItemString(key, result.get(key)));
-        }
-
-        return builder.toString();
+//        if (orders.isEmpty()) {
+//            return getNoOrdersMessage();
+//        }
+//        Map<String, Integer> result = loadOrdersByItem(orders);
+//
+//        // Load collated orders into String
+//        StringBuilder builder = new StringBuilder();
+//        builder.append("Collated your orders!\n\n");
+//
+//        for (String key : result.keySet()) {
+//            builder.append(buildItemString(key, result.get(key)));
+//        }
+//
+//        return builder.toString();
+        return "This function is currently not usable";
     }
 
     // Load into map for collate and TTS
@@ -278,10 +305,13 @@ public class RequestHandler {
     public SendPhoto loadMenu(String menuName, Long chatId) {
         LOGGER.info("Loading ShakeShackMenu: {}", menuName);
 
-        if (!menuName.equals(MENU_SHAKE_SHACK)) {
+        if (!isValidMenu(menuName)) {
             LOGGER.debug("Menu name did not match \"Shake Shack\": {}", menuName);
             return null; // TODO: maybe should have error message
         }
+
+        setMenuName(menuName);
+        menuName = menuName.replaceAll(" ", "");
 
         if (!menuMap.containsKey(menuName)) {
             // First time seeing this menu
@@ -367,12 +397,13 @@ public class RequestHandler {
         return null;
     }
 
-    private static String buildItemString(String orderName, int numOrders) {
+    private String buildItemString(String orderName, int numOrders, double totalPrice) {
+        // If more than 1 order, append s to food name unless it ends with s
         if (numOrders > 1 && !orderName.endsWith("s")) {
             orderName += 's';
         }
 
-        return numOrders + " x " + orderName + "\n";
+        return numOrders + " x " + orderName + " -- $" + totalPrice + "\n";
     }
 
     private static String removeFirstWord(String str) {
@@ -413,6 +444,10 @@ public class RequestHandler {
 
     private static String getNoOrdersMessage() {
         return MESSAGE_NO_ORDERS;
+    }
+
+    private static boolean isValidMenu(String name) {
+        return MENU_SHAKE_SHACK.contains(name.toLowerCase());
     }
 
     public enum Command {
