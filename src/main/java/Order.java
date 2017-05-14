@@ -2,7 +2,6 @@
  * @author zhengyu
  * @since 2017-05-13
  */
-
 public class Order {
     private int userId;
     private String username, name;
